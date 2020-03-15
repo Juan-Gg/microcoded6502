@@ -1,4 +1,5 @@
-#LOGISIM VERSION 35 ONWARDS.
+#LOGISIM VERSION 37 ONWARDS.
+#Added IRQ Instruction
 
 
 
@@ -9,13 +10,36 @@
 #Address high reg can be written from Data Bus ['adhe', 'adhw'] or from Aux Bus ['adhe']
 
 ############## CONTROL LINES ##################
+
+#PHYSICAL IMPLEMENTATION CONTROL SIGNAL DISTRIBUTION AND ACTIVE LOW SIGNALS:
+ctrlLines = [
+'pcce','pclw','pclr','pchw','pchr','pchra','adlw','adlr',   #ROM 0
+'adhe','adhw','adhr','cg0', 'cg1', 'cg2','extw','extr',     #ROM 1
+'alu0','alu1','alu2','alu3','aaw','abw','alr','hce',        #ROM 2
+'sc','sz','si','sv','sn','fgs','fgv','srr',                 #ROM 3
+'rxw','rxr','ryw','ryr','raw','rar','spw','spr',            #ROM 4
+'tcclr','irw','nmir','srw','a','b','c','d'                  #ROM 5
+]
+
+activeLow = [
+'pclw','pclr','pchw','pchr','pchra','adlw','adlr',
+'adhe','adhw','adhr',
+'aaw','abw','alr',
+'srr',
+'rxw','rxr','ryw','ryr','raw','rar','spw','spr',
+'tcclr','irw'
+]
+
+'''
+#LOGISIM SIMULATION ORDER AND ACTIVE LOW SIGNALS
 ctrlLines = ['rar','raw','alu0','alu1','alu2','alu3','rxr','rxw','ryr','ryw','spr','spw','pchr','pchw','pclr','pclw',
             'pcce','abw','adhr','adhw','adlr','adlw','irw','tcclr','extr','extw','pchra','adhe','sc','sz','si','sv',
-            'sn','fgs','fgv','cg0', 'cg1', 'cg2', 'aaw', 'alr','srw','srr','hce','nmi','c','d','e','f']
+            'sn','fgs','fgv','cg0', 'cg1', 'cg2', 'aaw', 'alr','srw','srr','hce','nmir','c','d','e','f']
 
 activeLow = ['pchw','pclw','irw','spw','rxw','ryw','raw','aaw','abw','alr','pchr','pclr','pchra','spr','rxr','ryr','rar',
             'adhw','adhr','adlr','srr','adhe','adlw']
 
+'''
 bits = {}
 
 for i in range(48):
@@ -55,7 +79,7 @@ definedOpcodes = {
 #STACK
 0x48:'pha', 0x08:'php', 0x68:'pla', 0x28:'plp',
 #JUMP/INTERRUPTS
-0x00:'brk', 0x40:'rti',
+0x00:'brk', 0xfb: 'irq', 0x40:'rti',
 0x20:'jsr', 0x60:'rts',
 0x4c:'jmp_ab', 0x6c:'jmp_id',
 #CONDITIONAL BRANCHES
@@ -74,7 +98,7 @@ fetchSequence =  [['pclr','adlw','pchra','adhe'], ['extr','irw','pcce']]
 
 #              mem-> ALU A, PC count;      PCL-> ALU B, clear c;            (+)ALU -> PCL, save c;                              (SE)ALU->ALU A;                    PCH -> ALU B;        (+)ALU -> PCH
 branch =     [['hce','extr','aaw','pcce'],['hce','pclr','abw','sc','fgs'],['hce','alu0','alu3','alr','pclw','sc','srw'],['hce','alu3','alu1','alu0','alr','aaw'],['hce','pchr','abw'],['hce','alu3','alu0','alr','pchw'],['tcclr']]
-not_branch = [['pcce'],['tcclr']]
+not_branch = [['pcce','extr'],['tcclr']] #We need to read here so it reads on the preceding cycle. See writeRoms()
 
 ############ ADDRESSING MODES ################
 #They do all required address calculations and get operands ready for actual operations.
@@ -913,14 +937,14 @@ microcode = {
     #RESET--------------------------------------------------------------------------------
     'rst': #RESET sequence
     [
-        [['cg2','adlw','adhe'], ['extr', 'pclw'], ['cg2','cg0','adlw','adhe'], ['extr', 'pchw'], ['tcclr']],
-        [['cg2','adlw','adhe'], ['extr', 'pclw'], ['cg2','cg0','adlw','adhe'], ['extr', 'pchw'], ['tcclr']],
+        [['cg2','adlw','adhe','nmir'], ['extr', 'pclw'], ['cg2','cg0','adlw','adhe'], ['extr', 'pchw'], ['tcclr']],
+        [['cg2','adlw','adhe','nmir'], ['extr', 'pclw'], ['cg2','cg0','adlw','adhe'], ['extr', 'pchw'], ['tcclr']],
     ],
     #NMI--------------------------------------------------------------------------------
     'nmi':
     [#  SP->ADL.ALU A,0x1->ADH;                    PCH->MEM, clear c;               (SUB0)ALU -> SP;          SP->ADL.ALU A,0x1->ADH;                  PCL->MEM;             (SUB0)ALU -> SP;            SP->ADL.ALU A,0x1->ADH;                  SR->MEM;             (SUB0)ALU -> SP;          FFFA -> Address regs.;   IRQL->PCL;       FFFB -> Address regs.;          IRQL->PCL, set i, reset nmi flip-flop; 
-        [['hce','spr','adlw','aaw','cg0','adhe'],['hce','pchr','extw','sc','fgs'],['hce','alu3','alr','spw'],['hce','spr','adlw','aaw','cg0','adhe'],['hce','pclr','extw'],['hce','alu3','alr','spw'],['hce','spr','adlw','aaw','cg0','adhe'],['hce','srr','extw'],['hce','alu3','alr','spw'],['cg1','adlw','adhe'], ['extr', 'pclw'], ['cg1','cg0','adlw','adhe'], ['extr', 'pchw','si','fgs','fgv','nmi'],['tcclr']],
-        [['hce','spr','adlw','aaw','cg0','adhe'],['hce','pchr','extw','sc','fgs'],['hce','alu3','alr','spw'],['hce','spr','adlw','aaw','cg0','adhe'],['hce','pclr','extw'],['hce','alu3','alr','spw'],['hce','spr','adlw','aaw','cg0','adhe'],['hce','srr','extw'],['hce','alu3','alr','spw'],['cg1','adlw','adhe'], ['extr', 'pclw'], ['cg1','cg0','adlw','adhe'], ['extr', 'pchw','si','fgs','fgv','nmi'],['tcclr']],
+        [['hce','spr','adlw','aaw','cg0','adhe'],['hce','pchr','extw','sc','fgs'],['hce','alu3','alr','spw'],['hce','spr','adlw','aaw','cg0','adhe'],['hce','pclr','extw'],['hce','alu3','alr','spw'],['hce','spr','adlw','aaw','cg0','adhe'],['hce','srr','extw'],['hce','alu3','alr','spw'],['cg1','adlw','adhe'], ['extr', 'pclw'], ['cg1','cg0','adlw','adhe'], ['extr', 'pchw','si','fgs','fgv','nmir'],['tcclr']],
+        [['hce','spr','adlw','aaw','cg0','adhe'],['hce','pchr','extw','sc','fgs'],['hce','alu3','alr','spw'],['hce','spr','adlw','aaw','cg0','adhe'],['hce','pclr','extw'],['hce','alu3','alr','spw'],['hce','spr','adlw','aaw','cg0','adhe'],['hce','srr','extw'],['hce','alu3','alr','spw'],['cg1','adlw','adhe'], ['extr', 'pclw'], ['cg1','cg0','adlw','adhe'], ['extr', 'pchw','si','fgs','fgv','nmir'],['tcclr']],
     ],
     #NOP-----------------------------------------------------------------------------------
     'nop':
@@ -938,11 +962,18 @@ microcode = {
         [['hce','spr','adlw','aaw','cg0','adhe','pcce'],['hce','pchr','extw','sc','fgs'],['hce','alu3','alr','spw'],['hce','spr','adlw','aaw','cg0','adhe'],['hce','pclr','extw'],['hce','alu3','alr','spw'],['hce','spr','adlw','aaw','cg0','adhe'],['hce','srr','extw'],['hce','alu3','alr','spw'],['cg2','cg1','adlw','adhe'], ['extr', 'pclw'], ['cg2','cg1','cg0','adlw','adhe'], ['extr', 'pchw','si','fgs','fgv'],['tcclr']],
     ],
 
+    #IRQ------------------------------------------------------------------------------------ B flag is NOT implemented for the time being.
+    'irq': 
+    [#  SP->ADL.ALU A,0x1->ADH, (NO padding byte);   PCH->MEM, clear c;               (SUB0)ALU -> SP;          SP->ADL.ALU A,0x1->ADH;                  PCL->MEM;             (SUB0)ALU -> SP;            SP->ADL.ALU A,0x1->ADH;                  SR->MEM;             (SUB0)ALU -> SP;          FFFE -> Address regs.;         IRQL->PCL;       FFFF -> Address regs.;              IRQL->PCL, set i; (some discrepancy here, but must be this way, so it does not get stuck)
+        [['hce','spr','adlw','aaw','cg0','adhe'],['hce','pchr','extw','sc','fgs'],['hce','alu3','alr','spw'],['hce','spr','adlw','aaw','cg0','adhe'],['hce','pclr','extw'],['hce','alu3','alr','spw'],['hce','spr','adlw','aaw','cg0','adhe'],['hce','srr','extw'],['hce','alu3','alr','spw'],['cg2','cg1','adlw','adhe'], ['extr', 'pclw'], ['cg2','cg1','cg0','adlw','adhe'], ['extr', 'pchw','si','fgs','fgv'],['tcclr']],
+        [['hce','spr','adlw','aaw','cg0','adhe'],['hce','pchr','extw','sc','fgs'],['hce','alu3','alr','spw'],['hce','spr','adlw','aaw','cg0','adhe'],['hce','pclr','extw'],['hce','alu3','alr','spw'],['hce','spr','adlw','aaw','cg0','adhe'],['hce','srr','extw'],['hce','alu3','alr','spw'],['cg2','cg1','adlw','adhe'], ['extr', 'pclw'], ['cg2','cg1','cg0','adlw','adhe'], ['extr', 'pchw','si','fgs','fgv'],['tcclr']],
+    ],
+
     #RTI-------------------------------------------------------------------------------------------------
     'rti':
-    [#      SP->ALU A, setc;                   (SUM0)ALU->SP;                           SP->ADL,0x1->ADH;                    MEM->SR;             SP->ALU A, set c;                  (SUM0)ALU->SP;                           SP->ADL,0x1->ADH;                    MEM->PCL;             SP->ALU A, set c;                  (SUM0)ALU->SP;                           SP->ADL,0x1->ADH;                    MEM->PCH;                        
-        [['hce','spr','aaw','sc','fgs','fgv'],['hce','alu0','alu1','alu2','alr','spw'],['hce','spr','adlw','cg0','adhe'],['hce','extr','srw'],['hce','spr','aaw','sc','fgs','fgv'],['hce','alu0','alu1','alu2','alr','spw'],['hce','spr','adlw','cg0','adhe'],['hce','extr','pclw'],['hce','spr','aaw','sc','fgs','fgv'],['hce','alu0','alu1','alu2','alr','spw'],['hce','spr','adlw','cg0','adhe'],['hce','extr','pchw'],['tcclr']],
-        [['hce','spr','aaw','sc','fgs','fgv'],['hce','alu0','alu1','alu2','alr','spw'],['hce','spr','adlw','cg0','adhe'],['hce','extr','srw'],['hce','spr','aaw','sc','fgs','fgv'],['hce','alu0','alu1','alu2','alr','spw'],['hce','spr','adlw','cg0','adhe'],['hce','extr','pclw'],['hce','spr','aaw','sc','fgs','fgv'],['hce','alu0','alu1','alu2','alr','spw'],['hce','spr','adlw','cg0','adhe'],['hce','extr','pchw'],['tcclr']],
+    [#      SP->ALU A, setc;                   (SUM0)ALU->SP;                           SP->ADL,0x1->ADH;                    MEM->SR;             SP->ALU A, set c;                  (SUM0)ALU->SP;                           SP->ADL,0x1->ADH;                    MEM->PCL;             SP->ALU A, set c;                  (SUM0)ALU->SP;                           SP->ADL,0x1->ADH;                MEM->PCH, clear I disable;                        
+        [['hce','spr','aaw','sc','fgs','fgv'],['hce','alu0','alu1','alu2','alr','spw'],['hce','spr','adlw','cg0','adhe'],['hce','extr','srw'],['hce','spr','aaw','sc','fgs','fgv'],['hce','alu0','alu1','alu2','alr','spw'],['hce','spr','adlw','cg0','adhe'],['hce','extr','pclw'],['hce','spr','aaw','sc','fgs','fgv'],['hce','alu0','alu1','alu2','alr','spw'],['hce','spr','adlw','cg0','adhe'],['hce','extr','pchw','si','fgs'],['tcclr']],
+        [['hce','spr','aaw','sc','fgs','fgv'],['hce','alu0','alu1','alu2','alr','spw'],['hce','spr','adlw','cg0','adhe'],['hce','extr','srw'],['hce','spr','aaw','sc','fgs','fgv'],['hce','alu0','alu1','alu2','alr','spw'],['hce','spr','adlw','cg0','adhe'],['hce','extr','pclw'],['hce','spr','aaw','sc','fgs','fgv'],['hce','alu0','alu1','alu2','alr','spw'],['hce','spr','adlw','cg0','adhe'],['hce','extr','pchw','si','fgs'],['tcclr']],
     ],
     
     #JSR------------------------------------------------------------------------------------------------- 
@@ -982,41 +1013,56 @@ microcode = {
 ############## FILE HANDLING & DATA FORMATTING #####################
 
 def formatData(out, rom):
-        for line in activeLow:
-            out^=bits[line]
-        return str(hex((out>>(rom*8)) & 0b11111111))[2:].zfill(2)
-
+    #Invert active low signals
+    for line in activeLow: 
+        out^=bits[line]
+    #Put data in logisim's format.
+    return str(hex((out>>(rom*8)) & 0b11111111))[2:].zfill(2) 
 
 def writeContents(file, rom):
     print('Writing ROM ' + str(rom) + '...')
-    file.write('v2.0 raw\n')
-    file.write('\n#ROM ' + str(rom) + ' CONTENTS\n')
+    file.write('v2.0 raw')
+    file.write('\n')
+    #file.write('\n#ROM ' + str(rom) + ' CONTENTS\n')
+
     for opcode in range(256):
         data = ''
         if opcode in definedOpcodes:
             instruction = microcode[definedOpcodes[opcode]]
         else:
             instruction = microcode['nop']
-        file.write('\n#'+ str(hex(opcode))+'---------------------------------\n')
+
+        #file.write('\n#'+ str(hex(opcode))+'---------------------------------\n')
+        file.write('\n')
+        
         for case in instruction:
-            #Fetch sequence- same for every instruction
-            for time in fetchSequence:
+            
+            #This contains all steps/times that comprise the instruction.
+            #We have to do it thsi way, creating copies of each list element, so changing one does not cahnge the original.
+            sequence = [list(x) for x in (fetchSequence + case)] 
+
+            #Move extr and extw to the preceding time in the sequence.
+            #New hardware revision requires this, and this way microcode does not have to be changed.
+
+            for i in range(1, len(sequence)):
+                for signal in ['extr','extw']:
+                    if signal in sequence[i]:
+                        sequence[i].remove(signal)
+                        sequence[i-1].append(signal)
+
+            #Turn control signals into bits of the control word
+
+            for time in sequence:
                 out = 0b0
                 for ctrlLine in time:
                     out = out | bits[ctrlLine]
                 data += formatData(out, rom) + ' '
-            #Instruction specific 
-            i = 0
-            for time in case:
-                i+=1
-                for ctrlLine in time:
-                    out = out | bits[ctrlLine]
-                data += formatData(out, rom) + ' '
-            for i in range(16-len(case)-len(fetchSequence)):
+
+            #Add padding 0s for the unused cycles
+            for i in range(16-len(sequence)):
                 data += formatData(0, rom) + ' '
             data += '  '
         file.write(data)
-
 
 
 #OPEN TEXT FILES
