@@ -156,18 +156,7 @@ loop 		ldx lcdIndex
 			clc
 			bcc loop
 			
-NMIISR:		lda #'N'
-			jsr lcdTerm
-			
-			lda #'M'
-			jsr lcdTerm	
-			
-			lda #'I'
-			jsr lcdTerm
-			
-			lda #'!'
-			jsr lcdTerm	
-			
+NMIISR:	
 			jmp loop
 			
 			
