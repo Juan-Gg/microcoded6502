@@ -1,4 +1,8 @@
-#ALU code for version 20 and up of logisim simualtion
+# ALU code for version 20 and up of logisim simulation.
+# Generates control ROM contents in Logisim's format. Can be converted to binary using srecord.
+# Written by JuanGg on November 2019 - June 2020
+# https://juangg-projects.blogspot.com/
+# http://forum.6502.org/viewtopic.php?f=12&t=5811
 
 #LOGICAL FUNCTIONS--------------------
 def NOP(a,b):
@@ -89,12 +93,12 @@ def BIT(a,b): #V, N, 6, 7 from a; Z from a&b
 #ALU LOW
 #ALU HIGH
              # 0 NOP, 1 NOT, 2 OR, 3 XOR, 4 AND, 5 ROL, 6 ROR, 7 SUM0, 8 SUB0, 9 SUM, 10 SUB, 11 SE, 12 BIT ,13 NOP, 14 NOP, 15 NOP
-#memoryMap = [NOP, NOP, NOT, NOT, OR, OR, XOR, XOR, AND, AND, ROL, ROLC, ROR, RORC, SUM0, SUM0C, SUB0, SUB0C, ADD, ADDC, SUB, SUBC,LSE,LSEC,BIT,BIT,NOP,NOP,NOP,NOP,NOP,NOP]
-memoryMap = [NOP, NOP, NOT, NOT, OR, OR, XOR, XOR, AND, AND, ROL, ROLC, ROR, RORC, SUM0, SUM0C, SUB0, SUB0C, ADD, ADDC, SUB, SUBC,HSE,HSE,BIT,BIT,NOP,NOP,NOP,NOP,NOP,NOP]
+memoryMap = [NOP, NOP, NOT, NOT, OR, OR, XOR, XOR, AND, AND, ROL, ROLC, ROR, RORC, SUM0, SUM0C, SUB0, SUB0C, ADD, ADDC, SUB, SUBC,LSE,LSEC,BIT,BIT,NOP,NOP,NOP,NOP,NOP,NOP]
+#memoryMap = [NOP, NOP, NOT, NOT, OR, OR, XOR, XOR, AND, AND, ROL, ROLC, ROR, RORC, SUM0, SUM0C, SUB0, SUB0C, ADD, ADDC, SUB, SUBC,HSE,HSE,BIT,BIT,NOP,NOP,NOP,NOP,NOP,NOP]
 
 print("v2.0 raw\n")
 for i in range(len(memoryMap)):
-    print("#"+str(i)+"---------------")
+    #print("#"+str(i)+"---------------")
     for b in range(16):
         for a in range(16):
             out = memoryMap[i](a,b)

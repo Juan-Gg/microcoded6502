@@ -1,13 +1,17 @@
-#LOGISIM VERSION 37 ONWARDS.
-#Added IRQ Instruction
-
+# LOGISIM VERSION 37 ONWARDS.
+# Generates control ROM contents in Logisim's format. Can be converted to binary using srecord.
+# Written by JuanGg on November 2019 - June 2020
+# https://juangg-projects.blogspot.com/
+# http://forum.6502.org/viewtopic.php?f=12&t=5811
+# Added IRQ Instruction
+# Added b flag (bfg). 0 for IRQ and NMI, 1 otherwise
 
 
 # MISC
-# Flags order: NV---IZC   Z  and I flags can be cleared and set, V can only be cleared.
-#              76543210
+# Flags order: NVhbdIZC   Z  and I flags can be cleared and set, V can only be cleared.
+#              76543210   h:hidden  carry, internal. d: decimal mode not implemented
 #
-#Address high reg can be written from Data Bus ['adhe', 'adhw'] or from Aux Bus ['adhe']
+# Address high reg can be written from Data Bus ['adhe', 'adhw'] or from Aux Bus ['adhe']
 
 ############## CONTROL LINES ##################
 
@@ -18,7 +22,7 @@ ctrlLines = [
 'alu0','alu1','alu2','alu3','aaw','abw','alr','hce',        #ROM 2
 'sc','sz','si','sv','sn','fgs','fgv','srr',                 #ROM 3
 'rxw','rxr','ryw','ryr','raw','rar','spw','spr',            #ROM 4
-'tcclr','irw','nmir','srw','a','b','c','d'                  #ROM 5
+'tcclr','irw','nmir','srw','bfg','a','b','c'                #ROM 5
 ]
 
 activeLow = [
@@ -27,7 +31,7 @@ activeLow = [
 'aaw','abw','alr',
 'srr',
 'rxw','rxr','ryw','ryr','raw','rar','spw','spr',
-'tcclr','irw'
+'tcclr','irw','bfg'
 ]
 
 '''
@@ -942,9 +946,9 @@ microcode = {
     ],
     #NMI--------------------------------------------------------------------------------
     'nmi':
-    [#  SP->ADL.ALU A,0x1->ADH;                    PCH->MEM, clear c;               (SUB0)ALU -> SP;          SP->ADL.ALU A,0x1->ADH;                  PCL->MEM;             (SUB0)ALU -> SP;            SP->ADL.ALU A,0x1->ADH;                  SR->MEM;             (SUB0)ALU -> SP;          FFFA -> Address regs.;   IRQL->PCL;       FFFB -> Address regs.;          IRQL->PCL, set i, reset nmi flip-flop; 
-        [['hce','spr','adlw','aaw','cg0','adhe'],['hce','pchr','extw','sc','fgs'],['hce','alu3','alr','spw'],['hce','spr','adlw','aaw','cg0','adhe'],['hce','pclr','extw'],['hce','alu3','alr','spw'],['hce','spr','adlw','aaw','cg0','adhe'],['hce','srr','extw'],['hce','alu3','alr','spw'],['cg1','adlw','adhe'], ['extr', 'pclw'], ['cg1','cg0','adlw','adhe'], ['extr', 'pchw','si','fgs','fgv','nmir'],['tcclr']],
-        [['hce','spr','adlw','aaw','cg0','adhe'],['hce','pchr','extw','sc','fgs'],['hce','alu3','alr','spw'],['hce','spr','adlw','aaw','cg0','adhe'],['hce','pclr','extw'],['hce','alu3','alr','spw'],['hce','spr','adlw','aaw','cg0','adhe'],['hce','srr','extw'],['hce','alu3','alr','spw'],['cg1','adlw','adhe'], ['extr', 'pclw'], ['cg1','cg0','adlw','adhe'], ['extr', 'pchw','si','fgs','fgv','nmir'],['tcclr']],
+    [#  SP->ADL.ALU A,0x1->ADH;                    PCH->MEM, clear c;               (SUB0)ALU -> SP;          SP->ADL.ALU A,0x1->ADH;                  PCL->MEM;             (SUB0)ALU -> SP;            SP->ADL.ALU A,0x1->ADH;              SR->MEM, b flag = 0;             (SUB0)ALU -> SP;          FFFA -> Address regs.;   IRQL->PCL;       FFFB -> Address regs.;          IRQL->PCL, set i, reset nmi flip-flop; 
+        [['hce','spr','adlw','aaw','cg0','adhe'],['hce','pchr','extw','sc','fgs'],['hce','alu3','alr','spw'],['hce','spr','adlw','aaw','cg0','adhe'],['hce','pclr','extw'],['hce','alu3','alr','spw'],['hce','spr','adlw','aaw','cg0','adhe'],['hce','srr','extw','bfg'],['hce','alu3','alr','spw'],['cg1','adlw','adhe'], ['extr', 'pclw'], ['cg1','cg0','adlw','adhe'], ['extr', 'pchw','si','fgs','fgv','nmir'],['tcclr']],
+        [['hce','spr','adlw','aaw','cg0','adhe'],['hce','pchr','extw','sc','fgs'],['hce','alu3','alr','spw'],['hce','spr','adlw','aaw','cg0','adhe'],['hce','pclr','extw'],['hce','alu3','alr','spw'],['hce','spr','adlw','aaw','cg0','adhe'],['hce','srr','extw','bfg'],['hce','alu3','alr','spw'],['cg1','adlw','adhe'], ['extr', 'pclw'], ['cg1','cg0','adlw','adhe'], ['extr', 'pchw','si','fgs','fgv','nmir'],['tcclr']],
     ],
     #NOP-----------------------------------------------------------------------------------
     'nop':
@@ -964,9 +968,9 @@ microcode = {
 
     #IRQ------------------------------------------------------------------------------------ B flag is NOT implemented for the time being.
     'irq': 
-    [#  SP->ADL.ALU A,0x1->ADH, (NO padding byte);   PCH->MEM, clear c;               (SUB0)ALU -> SP;          SP->ADL.ALU A,0x1->ADH;                  PCL->MEM;             (SUB0)ALU -> SP;            SP->ADL.ALU A,0x1->ADH;                  SR->MEM;             (SUB0)ALU -> SP;          FFFE -> Address regs.;         IRQL->PCL;       FFFF -> Address regs.;              IRQL->PCL, set i; (some discrepancy here, but must be this way, so it does not get stuck)
-        [['hce','spr','adlw','aaw','cg0','adhe'],['hce','pchr','extw','sc','fgs'],['hce','alu3','alr','spw'],['hce','spr','adlw','aaw','cg0','adhe'],['hce','pclr','extw'],['hce','alu3','alr','spw'],['hce','spr','adlw','aaw','cg0','adhe'],['hce','srr','extw'],['hce','alu3','alr','spw'],['cg2','cg1','adlw','adhe'], ['extr', 'pclw'], ['cg2','cg1','cg0','adlw','adhe'], ['extr', 'pchw','si','fgs','fgv'],['tcclr']],
-        [['hce','spr','adlw','aaw','cg0','adhe'],['hce','pchr','extw','sc','fgs'],['hce','alu3','alr','spw'],['hce','spr','adlw','aaw','cg0','adhe'],['hce','pclr','extw'],['hce','alu3','alr','spw'],['hce','spr','adlw','aaw','cg0','adhe'],['hce','srr','extw'],['hce','alu3','alr','spw'],['cg2','cg1','adlw','adhe'], ['extr', 'pclw'], ['cg2','cg1','cg0','adlw','adhe'], ['extr', 'pchw','si','fgs','fgv'],['tcclr']],
+    [#  SP->ADL.ALU A,0x1->ADH, (NO padding byte);   PCH->MEM, clear c;               (SUB0)ALU -> SP;          SP->ADL.ALU A,0x1->ADH;                  PCL->MEM;             (SUB0)ALU -> SP;            SP->ADL.ALU A,0x1->ADH;               SR->MEM, b flag = 0;              (SUB0)ALU -> SP;          FFFE -> Address regs.;         IRQL->PCL;       FFFF -> Address regs.;              IRQL->PCL, set i; (some discrepancy here, but must be this way, so it does not get stuck)
+        [['hce','spr','adlw','aaw','cg0','adhe'],['hce','pchr','extw','sc','fgs'],['hce','alu3','alr','spw'],['hce','spr','adlw','aaw','cg0','adhe'],['hce','pclr','extw'],['hce','alu3','alr','spw'],['hce','spr','adlw','aaw','cg0','adhe'],['hce','srr','extw','bfg'],['hce','alu3','alr','spw'],['cg2','cg1','adlw','adhe'], ['extr', 'pclw'], ['cg2','cg1','cg0','adlw','adhe'], ['extr', 'pchw','si','fgs','fgv'],['tcclr']],
+        [['hce','spr','adlw','aaw','cg0','adhe'],['hce','pchr','extw','sc','fgs'],['hce','alu3','alr','spw'],['hce','spr','adlw','aaw','cg0','adhe'],['hce','pclr','extw'],['hce','alu3','alr','spw'],['hce','spr','adlw','aaw','cg0','adhe'],['hce','srr','extw','bfg'],['hce','alu3','alr','spw'],['cg2','cg1','adlw','adhe'], ['extr', 'pclw'], ['cg2','cg1','cg0','adlw','adhe'], ['extr', 'pchw','si','fgs','fgv'],['tcclr']],
     ],
 
     #RTI-------------------------------------------------------------------------------------------------
