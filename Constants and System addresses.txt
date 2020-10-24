@@ -1,0 +1,100 @@
+						;*****************************************************
+                        ;*				 SOME CONSTANTS					     *
+                        ;*****************************************************
+						
+						;LCD
+9c02 =                  lcd10 		equ $9C02  
+9c03 =                  lcd11		equ $9C03 
+9c04 =                  lcd20 		equ $9C04  
+9c05 =                  lcd21		equ $9C05 
+                        
+                        ;Keyboard
+9c08 =                  kbrd		equ $9C08
+                        
+                        ;VGA
+7000 =                  vRAMbase	equ $7000
+9c10 =                  vgaColor    	equ $9C10
+                        
+                        ;UART
+9000 =                  uartData	equ $9000
+9001 =                  uartStatus	equ $9001
+                        
+                        ;MONITOR
+6f00 =                  monBuffer	equ $6f00 ;$6f00...$6fff
+                        
+                        ;EhBASIC
+0000 =                  warmStart	equ $0000
+c000 =                  coldStart	equ $c000
+
+
+						;*****************************************************
+                        ;*				 ZERO-PAGE VARIABLES 			     *
+                        ;*****************************************************
+						
+			; Keyboard
+0014 =                  kbBuffer	ds 1 ; Last character typed. 0 if none
+0015 =                  kbFlags		ds 1 ; Release (7), Shift(6), Control(5), Special(4), Caps(3)
+                        
+                        ; Screen stuff:
+0016 =                  textHIdx	ds 1 ; Text horizontal index 0...24
+0017 =                  textVIdx	ds 1 ; Text vertical index 0...15
+0018 =                  vRAMIdx		ds 2 ; Used for drawing on screen
+001a =                  vRAMIdx2	ds 2 ;
+001c =                  cROMIdx		ds 2 ;
+                        
+                        ; Misc
+001e =                  strAddr		ds 2 ; Address of string to be printed
+0020 =                  char		ds 1 ; To be printed by vgaCharB
+                        
+                        ; Monitor
+0021 =                  parsedHex	ds 2 ; Ascii to hex result
+0023 =                  monAddr1	ds 2 ; Addresses for memory dump
+0025 =                  monAddr2	ds 2 ;
+                        
+                        ; Graphics
+0027 =                  gX0		ds 1 ; Point coordinates, or line starting point (0...199)
+0028 =                  gY0		ds 1 ; (0...127)
+0029 =                  gX1		ds 1 ; Line ending point
+002a =                  gY1		ds 1
+002b =                  gColor		ds 1 ; Bit 7: 0 background, 1 foreground
+                        
+                        ; UART
+002c =                  uInt		ds  1 ; Enable/disable uart interrupts (not implemented)
+002d =                  uVgaDis		ds  1 ; Bit 7: 0 enabled, 1 disabled (for spee
+                        				  ; Bit 6: 0 cursor on, 1 cursor off.
+                        
+                        ; MINI (Dis)assembler
+002e =                  asMNEM		ds 1 ; Holds mnemonic index
+002f =                  asAMOD		ds 1 ; Holds addressing mode index
+0030 =                  aPrCnt		ds 2 ; Virtual program counter
+0032 =                  mBIdx		ds 1 ; start index of mnemonic
+                        
+                        ; Misc variables for use in subroutines
+0033 =                  tmp0		ds 1 ;
+0034 =                  tmp1		ds 1 ;
+0035 =                  tmp2 		ds 1 ;
+0036 =                  tmp3		ds 1 ;
+0037 =                  tmp4		ds 1 ;
+0038 =                  tmp5		ds 1 ;
+0039 =                  tmp6		ds 1 ;
+003a =                  tmp7		ds 1 ;
+003b =                  tmp8		ds 1 ;
+003c =                  tmp9		ds 1 ;
+
+
+
+						;*****************************************************
+                        ;*			SYSTEM FUNCTIONS JUMP TABLE 		     *
+                        ;*****************************************************
+						
+ffc0 : 4c8ce8   	jmp monitor	; Jumps to the ROM monitor
+ffc3 : 4c46f4   	jmp vgaCharB	; Prints a character in char at textHIdx, textVIdx
+ffc6 : 4cecf3   	jmp vgaCls	; Clears the screen
+ffc9 : 4c0ef4   	jmp vgaScroll	; Scrolls the screen 8 pixels up
+ffcc : 4c84f2   	jmp gPlotPix	; Plots point at (gX0, gY0)
+ffcf : 4c26f1   	jmp gLine	; Draws line between (gX0, gY0) and (gX1, gY1) CHANGES COORDINATES (DESTRUCTIVE)!!!
+ffd2 : 4c08f3   	jmp basicIn	; If character from keyboard or uart, puts it in a and sets c. Else clears a and c.
+ffd5 : 4c0df1   	jmp mPrByte	; Prints byte in A as two digit ascii hex.
+ffd8 : 4c48f4   	jmp vgaChar	; Prints character in A at textHIdx, textVIdx
+ffdb : 4c7df3   	jmp vgaTerm	; Screen acts as a dub terminal. Also sends via uart.
+ffde : 4c35f3   	jmp printStr	; Prints string (max 256 char) found at strAddr
